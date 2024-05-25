@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JMESPath Playground</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css"
+        integrity="sha512-jnSuA4Ss2PkkikSOLtYs8BlYIeeIK1h99ty4YfvRPAlzr377vr3CXDb7sb7eEEBYjDtcYj+AjBH3FLv5uSJuXg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        /* wrapping text with highlighted-code */
+        pre,
+        code {
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="app" class="p-2">
+        <div class="container-fluid border p-2">
+            <div class="row my-2">
+                <div class="col-lg-6">
+                    <h3>Expression</h3>
+                    <input id="expression" class="form-control" type="text" placeholder="Expression" />
+                    <h3>Input JSON</h3>
+                    <textarea id="data" class="form-control" is="highlighted-code" language="json"></textarea>
+                </div>
+                <div class="col-lg-6">
+                    <h3>Result</h3>
+                    <textarea disabled auto-height id="result" class="form-control" is="highlighted-code"
+                        language="json"></textarea>
+                    <pre id="error" class="form-control text-danger border-danger my-1" hidden></pre>
+                    <pre id="performance" class="form-control text-green border-green my-1" hidden></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- using highlighted-code to highligh JSON data and result -->
+    <script type="module" defer>
+        (async ({ chrome, netscape }) => {
+            if (!chrome && !netscape) await import('https://unpkg.com/@ungap/custom-elements');
+            const { default: HighlightedCode } = await import('https://unpkg.com/highlighted-code');
+            HighlightedCode.useTheme('github');
+        })(self);
+    </script>
+    <!-- using JMESPath core library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jmespath/0.16.0/jmespath.min.js"
+        integrity="sha512-w/sNKK/59oJUi6v+SjgfIijrkFN8Pfv5QFZSV4KvrNMJrlbVM3017ZGNCA2AwZ6PKJzTPxQaDs/TbPcVGnF+pQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        (function () {
+            // fetch params from URL query string
+            const params = new URLSearchParams(window.location.search);
+            /*
+             * e for expression
+             * d for input JSON
+             * p for show performance test result or not
+             * dr for setting data rows
+            */
+            const expressionParam = params.get('e');
+            const dataParam = params.get('d');
+            const showPerfInfo = params.get('p');
+            const setDataRows = params.get('dr') ? params.get('dr') : 8;
+
+            document.getElementById('data').rows = setDataRows;
+            document.getElementById('expression').value = expressionParam ? expressionParam : 'a';
+            document.getElementById('data').value = dataParam ? dataParam : '{"a": "foo", "b": "bar", "c": "hello-world"}';
+
+            function evaluate(el) {
+                const start = performance.now();
+
+                try {
+                    var expression = el.querySelector('#expression').value;
+                    var data = JSON.parse(el.querySelector('#data').value);
+                    var result = jmespath.search(data, expression);
+                    el.querySelector('#result').value = JSON.stringify(result, null, 2);
+                    el.querySelector('#error').hidden = true;
+                } catch (error) {
+                    el.querySelector('#error').textContent = error;
+                    el.querySelector('#error').hidden = false;
+                }
+
+                const end = performance.now();
+                const duration = end - start;
+                if (showPerfInfo) {
+                    const executionTime = duration.toFixed(2);
+                    const memoryUsage = (window.performance.memory.totalJSHeapSize / (1024 * 1024)).toFixed(2);
+                    el.querySelector('#performance').textContent = `Execution Time: ${executionTime} ms\nJS Heap Memory Usage: ${memoryUsage}MB`;
+                    el.querySelector('#performance').hidden = false;
+                } else {
+                    el.querySelector('#performance').hidden = true;
+                }
+            }
+
+            const app = document.getElementById('app');
+            evaluate(app);
+            app.querySelector('#expression').addEventListener('input', () => evaluate(app));
+            app.querySelector('#data').addEventListener('input', () => evaluate(app));
+        })();
+    </script>
+
+</body>
+
+</html>
